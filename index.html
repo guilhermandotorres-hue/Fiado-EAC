@@ -2,76 +2,64 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Caderneta de Fiado</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 20px;
+      margin: 0;
+      padding: 0;
       background: #f5f5f5;
     }
     h1 {
       text-align: center;
+      margin-top: 20px;
     }
     .logo {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      width: 180px; /* aumentei de 140px para 180px */
+      display: block;
+      margin: 10px auto;
+      width: 150px;
+      max-width: 50%;
     }
     .container {
       max-width: 600px;
-      margin: auto;
-      background: white;
+      margin: 20px auto;
+      background: #fff;
       padding: 20px;
       border-radius: 12px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-      margin-top: 100px;
     }
-    input {
-      padding: 8px;
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
       margin: 5px 0;
-      width: calc(100% - 16px);
       border-radius: 6px;
       border: 1px solid #ccc;
+      box-sizing: border-box;
     }
     button {
-      padding: 8px 12px;
+      padding: 10px 15px;
       margin: 5px 5px 5px 0;
       border: none;
       border-radius: 6px;
-      cursor: pointer;
       font-weight: bold;
+      cursor: pointer;
       transition: background 0.3s;
     }
-    /* Cores dos botões */
-    .btn-adicionar {
-      background-color: #6EC1E4; /* azul claro */
-      color: #fff;
-    }
-    .btn-adicionar:hover {
-      background-color: #4DA3D5;
-    }
-    .btn-exportar {
-      background-color: #4CAF50; /* verde para exportar */
-      color: #fff;
-    }
-    .btn-exportar:hover {
-      background-color: #45A049;
-    }
-    .btn-editar {
-      background-color: #FFA500; /* laranja */
-      color: #fff;
-    }
-    .btn-apagar {
-      background-color: #E74C3C; /* vermelho */
-      color: #fff;
-    }
+    .btn-adicionar { background-color: #6EC1E4; color: #fff; }
+    .btn-adicionar:hover { background-color: #4DA3D5; }
+    .btn-exportar { background-color: #4CAF50; color: #fff; }
+    .btn-exportar:hover { background-color: #45A049; }
+    .btn-editar { background-color: #FFA500; color: #fff; }
+    .btn-apagar { background-color: #E74C3C; color: #fff; }
+
     .cliente {
       margin: 15px 0;
       padding: 15px;
       border: 1px solid #ccc;
       border-radius: 8px;
       background: #fafafa;
+      word-wrap: break-word;
     }
     .compras {
       margin-top: 10px;
@@ -79,10 +67,14 @@
     .item {
       display: flex;
       justify-content: space-between;
+      flex-wrap: wrap;
       margin: 5px 0;
       background: #eee;
       padding: 5px 10px;
       border-radius: 6px;
+    }
+    .item span {
+      margin-top: 5px;
     }
     .total {
       font-weight: bold;
@@ -90,8 +82,41 @@
     }
     .item button {
       margin-left: 5px;
-      padding: 3px 6px;
+      padding: 5px 8px;
       font-size: 0.9em;
+    }
+
+    /* Barra de pesquisa e botão Ir para Cliente */
+    #pesquisaCliente {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+      background-color: #fff; /* cor padrão */
+    }
+
+    /* --- Responsividade --- */
+    @media (max-width: 480px) {
+      .container {
+        padding: 15px;
+        margin: 15px;
+      }
+      .logo {
+        width: 120px;
+      }
+      button {
+        padding: 8px 12px;
+        font-size: 0.9em;
+      }
+      .item {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .item span {
+        margin-top: 5px;
+      }
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -101,10 +126,19 @@
 
   <div class="container">
     <h1>Caderneta de Fiado</h1>
+
+    <!-- Cadastro de clientes -->
     <input type="text" id="nomeCliente" placeholder="Nome do cliente">
     <button class="btn-adicionar" onclick="adicionarCliente()">Adicionar Cliente</button>
     <button class="btn-exportar" onclick="exportarExcel()">📊 Exportar para Excel</button>
-    
+
+    <!-- Separação visual entre cadastro e pesquisa -->
+    <div style="margin-top: 25px; border-top: 1px solid #ccc; padding-top: 15px;">
+      <!-- Barra de pesquisa padrão -->
+      <input type="text" id="pesquisaCliente" placeholder="Pesquisar cliente..." oninput="filtrarClientes()">
+      <button class="btn-adicionar" style="margin-top: 10px;" onclick="irParaCliente()">Ir para Cliente</button>
+    </div>
+
     <div id="listaClientes"></div>
   </div>
 
@@ -176,35 +210,64 @@
       return compras.reduce((sum, item) => sum + item.valor, 0);
     }
 
-    function renderClientes() {
+    function renderClientes(filtro = "") {
       const lista = document.getElementById("listaClientes");
       lista.innerHTML = "";
       clientes.forEach((cliente, cIndex) => {
-        const div = document.createElement("div");
-        div.className = "cliente";
+        if (cliente.nome.toLowerCase().includes(filtro.toLowerCase())) {
+          const div = document.createElement("div");
+          div.className = "cliente";
 
-        let html = `<h3>${cliente.nome}</h3>
-                    <button class="btn-adicionar" onclick="adicionarCompra(${cIndex})">Adicionar Compra</button>
-                    <button class="btn-editar" onclick="editarCliente(${cIndex})">Editar Cliente</button>
-                    <button class="btn-apagar" onclick="apagarCliente(${cIndex})">Apagar Cliente</button>
-                    <div class="compras">`;
+          let html = `<h3>${cliente.nome}</h3>
+                      <button class="btn-adicionar" onclick="adicionarCompra(${cIndex})">Adicionar Compra</button>
+                      <button class="btn-editar" onclick="editarCliente(${cIndex})">Editar Cliente</button>
+                      <button class="btn-apagar" onclick="apagarCliente(${cIndex})">Apagar Cliente</button>
+                      <div class="compras">`;
 
-        cliente.compras.forEach((item, iIndex) => {
-          html += `<div class="item">
-                     ${item.produto} - R$ ${item.valor.toFixed(2)}
-                     <span>
-                       <button onclick="editarCompra(${cIndex}, ${iIndex})">✏️</button>
-                       <button onclick="removerCompra(${cIndex}, ${iIndex})">❌</button>
-                     </span>
-                   </div>`;
-        });
+          cliente.compras.forEach((item, iIndex) => {
+            html += `<div class="item">
+                       ${item.produto} - R$ ${item.valor.toFixed(2)}
+                       <span>
+                         <button onclick="editarCompra(${cIndex}, ${iIndex})">✏️</button>
+                         <button onclick="removerCompra(${cIndex}, ${iIndex})">❌</button>
+                       </span>
+                     </div>`;
+          });
 
-        html += `</div>
-                 <div class="total">Total: R$ ${calcularTotal(cliente.compras).toFixed(2)}</div>`;
+          html += `</div>
+                   <div class="total">Total: R$ ${calcularTotal(cliente.compras).toFixed(2)}</div>`;
 
-        div.innerHTML = html;
-        lista.appendChild(div);
+          div.innerHTML = html;
+          lista.appendChild(div);
+        }
       });
+    }
+
+    function filtrarClientes() {
+      const filtro = document.getElementById("pesquisaCliente").value;
+      renderClientes(filtro);
+    }
+
+    function irParaCliente() {
+      const nomeBusca = document.getElementById("pesquisaCliente").value.toLowerCase();
+      if (!nomeBusca) return alert("Digite o nome do cliente para localizar!");
+      
+      const listaDivs = document.querySelectorAll(".cliente");
+      let encontrado = false;
+
+      listaDivs.forEach(div => {
+        const h3 = div.querySelector("h3");
+        if (h3.textContent.toLowerCase() === nomeBusca) {
+          div.scrollIntoView({ behavior: "smooth", block: "center" });
+          div.style.backgroundColor = "#ffff99"; // destaca temporariamente
+          setTimeout(() => div.style.backgroundColor = "#fafafa", 2000);
+          encontrado = true;
+        }
+      });
+
+      if (!encontrado) {
+        alert("Cliente não encontrado!");
+      }
     }
 
     function exportarExcel() {

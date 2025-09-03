@@ -16,26 +16,62 @@
       position: absolute;
       top: 10px;
       left: 10px;
-      width: 180px; /* aumentei o tamanho da logo */
+      width: 180px; /* aumentei de 140px para 180px */
     }
     .container {
       max-width: 600px;
       margin: auto;
-      background: rgb(255, 255, 255);
+      background: white;
       padding: 20px;
       border-radius: 12px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-      margin-top: 100px; /* espaço para não cobrir a logo */
+      margin-top: 100px;
     }
-    input, button {
+    input {
       padding: 8px;
       margin: 5px 0;
+      width: calc(100% - 16px);
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    button {
+      padding: 8px 12px;
+      margin: 5px 5px 5px 0;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+    /* Cores dos botões */
+    .btn-adicionar {
+      background-color: #6EC1E4; /* azul claro */
+      color: #fff;
+    }
+    .btn-adicionar:hover {
+      background-color: #4DA3D5;
+    }
+    .btn-exportar {
+      background-color: #4CAF50; /* verde para exportar */
+      color: #fff;
+    }
+    .btn-exportar:hover {
+      background-color: #45A049;
+    }
+    .btn-editar {
+      background-color: #FFA500; /* laranja */
+      color: #fff;
+    }
+    .btn-apagar {
+      background-color: #E74C3C; /* vermelho */
+      color: #fff;
     }
     .cliente {
       margin: 15px 0;
-      padding: 10px;
-      border: 1px solid #bbbbbb;
+      padding: 15px;
+      border: 1px solid #ccc;
       border-radius: 8px;
+      background: #fafafa;
     }
     .compras {
       margin-top: 10px;
@@ -52,16 +88,22 @@
       font-weight: bold;
       margin-top: 10px;
     }
+    .item button {
+      margin-left: 5px;
+      padding: 3px 6px;
+      font-size: 0.9em;
+    }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
-  <!-- Logo -->
   <img src="Made with insMind-Logo-do-EAC.png" class="logo" alt="Logo EAC">
 
   <div class="container">
     <h1>Caderneta de Fiado</h1>
     <input type="text" id="nomeCliente" placeholder="Nome do cliente">
-    <button onclick="adicionarCliente()">Adicionar Cliente</button>
+    <button class="btn-adicionar" onclick="adicionarCliente()">Adicionar Cliente</button>
+    <button class="btn-exportar" onclick="exportarExcel()">📊 Exportar para Excel</button>
     
     <div id="listaClientes"></div>
   </div>
@@ -69,7 +111,6 @@
   <script>
     let clientes = [];
 
-    // ---- Funções para LocalStorage ----
     function salvarDados() {
       localStorage.setItem("cadernetaFiado", JSON.stringify(clientes));
     }
@@ -82,11 +123,9 @@
       }
     }
 
-    // ---- Funções principais ----
     function adicionarCliente() {
       const nome = document.getElementById("nomeCliente").value;
       if (nome.trim() === "") return alert("Digite o nome do cliente!");
-
       clientes.push({ nome, compras: [] });
       document.getElementById("nomeCliente").value = "";
       salvarDados();
@@ -97,7 +136,6 @@
       const produto = prompt("Produto:");
       const valor = parseFloat(prompt("Valor:"));
       if (!produto || isNaN(valor)) return alert("Dados inválidos!");
-      
       clientes[index].compras.push({ produto, valor });
       salvarDados();
       renderClientes();
@@ -107,7 +145,6 @@
       const novaDesc = prompt("Novo produto:", clientes[cIndex].compras[iIndex].produto);
       const novoValor = parseFloat(prompt("Novo valor:", clientes[cIndex].compras[iIndex].valor));
       if (!novaDesc || isNaN(novoValor)) return;
-
       clientes[cIndex].compras[iIndex] = { produto: novaDesc, valor: novoValor };
       salvarDados();
       renderClientes();
@@ -147,9 +184,9 @@
         div.className = "cliente";
 
         let html = `<h3>${cliente.nome}</h3>
-                    <button onclick="adicionarCompra(${cIndex})">Adicionar Compra</button>
-                    <button onclick="editarCliente(${cIndex})">Editar Cliente</button>
-                    <button onclick="apagarCliente(${cIndex})">Apagar Cliente</button>
+                    <button class="btn-adicionar" onclick="adicionarCompra(${cIndex})">Adicionar Compra</button>
+                    <button class="btn-editar" onclick="editarCliente(${cIndex})">Editar Cliente</button>
+                    <button class="btn-apagar" onclick="apagarCliente(${cIndex})">Apagar Cliente</button>
                     <div class="compras">`;
 
         cliente.compras.forEach((item, iIndex) => {
@@ -170,7 +207,44 @@
       });
     }
 
-    // ---- Carregar dados ao abrir a página ----
+    function exportarExcel() {
+      if (clientes.length === 0) {
+        alert("Não há dados para exportar!");
+        return;
+      }
+
+      let dadosExcel = [];
+
+      clientes.forEach(cliente => {
+        if (cliente.compras.length > 0) {
+          cliente.compras.forEach(item => {
+            dadosExcel.push({
+              Cliente: cliente.nome,
+              Produto: item.produto,
+              Valor: item.valor
+            });
+          });
+          dadosExcel.push({
+            Cliente: cliente.nome,
+            Produto: "TOTAL",
+            Valor: calcularTotal(cliente.compras)
+          });
+          dadosExcel.push({});
+        } else {
+          dadosExcel.push({
+            Cliente: cliente.nome,
+            Produto: "Nenhuma compra",
+            Valor: 0
+          });
+        }
+      });
+
+      let wb = XLSX.utils.book_new();
+      let ws = XLSX.utils.json_to_sheet(dadosExcel);
+      XLSX.utils.book_append_sheet(wb, ws, "Caderneta");
+      XLSX.writeFile(wb, "caderneta_fiado.xlsx");
+    }
+
     window.onload = carregarDados;
   </script>
 </body>
